@@ -1,19 +1,4 @@
 <?php
-function infoType()
-{
-    return array(
-        '1' => array('name' => '二手', 'icon' => 'ershou'),
-        '2' => array('name' => '车辆', 'icon' => 'cheliang'),
-        '3' => array('name' => '房屋', 'icon' => 'fangwu'),
-        '4' => array('name' => '招聘', 'icon' => 'zhaopin'),
-        '5' => array('name' => '生意投资', 'icon' => 'service-life'),
-        '6' => array('name' => '交友寻人', 'icon' => 'jiaoyou'),
-        '7' => array('name' => '宠物', 'icon' => 'congwu'),
-        '8' => array('name' => '培训', 'icon' => 'peixun'),
-        //'9'=>array('name'=>'求职', 'icon'=>'qiuzhi'),
-        '10' => array('name' => '黄页', 'icon' => 'jianzhi'),
-    );
-}
 
 function HConvert($var)
 {

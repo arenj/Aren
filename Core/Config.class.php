@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Osacar
- * Date: 2016-08-19
- * Time: 16:39
- */
-
 namespace Aren\Core;
 
 class Config

@@ -1,6 +1,6 @@
 <?php
 namespace Aren\Core;
-//缓存类
+
 class Cache
 {
     protected $cache = NULL;

@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Osacar
- * Date: 2016-08-20
- * Time: 14:32
- */
-
 namespace Aren\Core;
 
 class File

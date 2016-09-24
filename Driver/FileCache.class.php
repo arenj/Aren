@@ -1,12 +1,6 @@
 <?php
 namespace Aren\Driver;
-/**
- * Created by JetBrains PhpStorm.
- * User: Administrator
- * Date: 13-3-5
- * Time: 上午10:11
- * To change this template use File | Settings | File Templates.
- */
+
 class FileCache
 {
     protected $dir;

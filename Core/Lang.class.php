@@ -1,15 +1,6 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Osacar
- * Date: 2016-08-13
- * Time: 3:18
- */
 namespace Aren\Core;
-/**
- * 语言包
- * @author
- */
+
 class Lang
 {
 

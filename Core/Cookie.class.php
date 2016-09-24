@@ -1,16 +1,6 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Osacar
- * Date: 2016-08-13
- * Time: 2:40
- */
 namespace Aren\Core;
-/**
- * Cookie处理类
- *
- * @author
- */
+
 class Cookie
 {
 

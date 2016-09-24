@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Osacar
- * Date: 2016-08-28
- * Time: 12:24
- */
-
 namespace Aren\Vendor;
 
 
