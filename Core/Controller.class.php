@@ -268,42 +268,6 @@ class Controller
         }
     }
 
-    protected function html_out($type, $init = '')
-    {
-        $html = '';
-        static $fields = null;
-        if (is_null($fields)) {
-            $fields = $this->cache->get('fields');
-        }
-        if (empty($fields[$type])) return $html;
-        $data = json_decode($fields[$type]->dval, true);
-        switch ($type) {
-            case 'input':
-                break;
-            case 'select':
-                foreach ($data as $key => $val) {
-                    $selected = $key == $init ? 'selected="selected"' : '';
-                    $html .= '<option value="' . $key . '" ' . $selected . '>' . $val . '</option>';
-                }
-                break;
-            case 'radio':
-                foreach ($data as $key => $val) {
-                    $checked = $key == $init ? 'checked="checked"' : '';
-                    $html .= '<label class="form-label"><input name="' . $fields[$type]->domid . '" class="checkbox-radio" value="' . $key . '" type="radio" ' . $checked . '> ' . $val . '</label>';
-                }
-                break;
-            case 'checkbox':
-                foreach ($data as $key => $val) {
-                    $checked = $key == $init ? 'checked="checked"' : '';
-                    $html .= '<label class="form-label"><input name="' . $fields[$type]->domid . '" class="checkbox-radio" value="' . $key . '" type="checkbox" ' . $checked . '> ' . $val . '</label>';
-                }
-                break;
-            case 'textarea':
-                break;
-        }
-        return $html;
-    }
-
     protected function checkCaptcha($code)
     {
         if ( isset($_SESSION['securimage_code_value']) && !empty($_SESSION['securimage_code_value']) ) {
