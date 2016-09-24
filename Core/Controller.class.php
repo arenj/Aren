@@ -55,7 +55,7 @@ class Controller
      * @internal param string $path
      * @internal param int $compile
      */
-    public function __construct($data = array())
+    public function __construct($data = [])
     {
         $this->path = ROOT_PATH . 'Project' . DS . Core::getApp() . DS . 'View' . DS;
         $this->data = $data;
@@ -175,7 +175,7 @@ class Controller
      * @param string $ext
      * @return string
      */
-    protected function url($controller, $action = 'index', $param = array(), $ext = '')
+    protected function url($controller, $action = 'index', $param = [], $ext = '')
     {
         return Request::url($controller, $action, $param, $ext);
     }
@@ -185,7 +185,7 @@ class Controller
      * @param array $vars
      * @return mixed
      */
-    protected function lang($name = null, $vars = array())
+    protected function lang($name = null, $vars = [])
     {
         return Lang::get($name, $vars);
     }
@@ -195,7 +195,7 @@ class Controller
      * @param int $status
      * @param array $data
      */
-    protected function ajaxReturn($msg, $status = 0, $data = array())
+    protected function ajaxReturn($msg, $status = 0, $data = [])
     {
         header('Content-Type:application/json; charset=utf-8');
         exit(json_encode(array(
