@@ -1,4 +1,5 @@
 <?php
+
 namespace Aren\Core;
 
 class Config
@@ -8,6 +9,10 @@ class Config
     public static function get($key = true) {
         if ($key === true) {
             return self::$config;
+        }
+        if(strpos($key, '.') !== false){
+            $keyArr = explode('.', $key);
+            return self::$config[$keyArr[0]][$keyArr[1]];
         }
         return self::$config[$key];
     }
