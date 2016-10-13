@@ -1,5 +1,6 @@
 <?php
 namespace Aren\Core;
+
 use PDO;
 use PDOException;
 
@@ -9,12 +10,20 @@ class Model
      * 数据库配置信息
      * @var array
      */
-    protected $config;
-
+    protected $config = [];
     protected $cache;
-
     /**
-     * 数据库对象
+     * 主库数据库对象
+     * @var \PDO
+     */
+    private $master;
+    /**
+     * 从库数据库对象
+     * @var \PDO
+     */
+    private $slave;
+    /**
+     * 当前数据库对象
      * @var \PDO
      */
     private $pdo;
@@ -24,6 +33,12 @@ class Model
      * @var \PDOStatement
      */
     private $stmt;
+
+    /**
+     * 标识当前连接的数据库类型
+     * @var
+     */
+    private $flag;
 
     private $sql;
 
@@ -46,29 +61,50 @@ class Model
     public function __construct()
     {
         #构造时添加配置数据
-        $this->config = Config::get('DB');
+        $this->config['master'] = Config::get('DB.master');
+        $this->config['slave'] = Config::get('DB.slave');
         $this->magicQuote = get_magic_quotes_gpc();
-        $this->connectMySQL();
+        //初始设为主库
+        $this->flag = 'master';
     }
 
+    public function getConnect()
+    {
+        if($this->flag == 'slave'){
+            $this->flag = 'slave';
+            if(is_null($this->slave)){
+                $this->slave = $this->connectMySQL($this->flag);
+            }
+            $this->pdo = $this->slave;
+        }else{
+            $this->flag = 'master';
+            if(is_null($this->master)){
+                $this->master = $this->connectMySQL($this->flag);
+            }
+            $this->pdo = $this->master;
+        }
+        return $this->pdo;
+    }
     /**
      * 连接到MySQL
+     * @param $type
      * @return bool
      */
-    private function connectMySQL()
+    private function connectMySQL($type)
     {
         try {
-            $dsn = 'mysql:host=' . $this->config['host'] . ';port=' . $this->config['port'] . ';dbname=' . $this->config['dbname'];
+
+            $dsn = 'mysql:host=' . $this->config[$type]['host'] . ';port=' . $this->config[$type]['port'] . ';dbname=' . $this->config[$type]['dbname'];
             #MySQL需要处理编码问题
             $options = array(
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
                 PDO::ATTR_CASE => PDO::CASE_NATURAL,
                 PDO::ATTR_PERSISTENT => true, //长连接,
-                PDO::MYSQL_ATTR_INIT_COMMAND => 'set names ' . $this->config['charset']
+                PDO::MYSQL_ATTR_INIT_COMMAND => 'set names ' . $this->config[$type]['charset']
             );
-            $this->pdo = new PDO($dsn, $this->config['user'], $this->config['password'], $options);
-            return true;
+            $link = new PDO($dsn, $this->config[$type]['user'], $this->config[$type]['password'], $options);
+            return $link;
         } catch (PDOException $e) {
             echo 'Errors occur when query data!\n';
             echo $e->getMessage();
@@ -127,13 +163,18 @@ class Model
      */
     public function select($fields = '*')
     {
+        if(Config::get('DB.mode') === 'r-w'){
+            $this->flag = 'slave';
+        }else{
+            $this->flag = 'master';
+        }
         $this->sql = "SELECT $fields ";
         return $this;
     }
 
     public function from($table)
     {
-        $this->sql .= " FROM `" . $this->config['prefix'] . $table . "` ";
+        $this->sql .= " FROM `" . $this->config[$this->flag]['prefix'] . $table . "` ";
         return $this;
     }
 
@@ -228,17 +269,15 @@ class Model
 
     public function batchWhere($fields)
     {
-        foreach($fields as $key => $field)
-        {
-            if($key == 0){
+        foreach ($fields as $key => $field) {
+            if ($key == 0) {
                 $this->where($field[0], $field[1], $field[2]);
-            }else{
+            } else {
                 $this->andWhere($field[0], $field[1], $field[2]);
             }
         }
         return $this;
     }
-
 
     public function set($set)
     {
@@ -253,19 +292,19 @@ class Model
 
     public function leftJoin($table)
     {
-        $this->sql .= ' LEFT JOIN `' . $this->config['prefix'] . $table . '`';
+        $this->sql .= ' LEFT JOIN `' . $this->config[$this->flag]['prefix'] . $table . '`';
         return $this;
     }
 
     public function rightJoin($table)
     {
-        $this->sql .= ' RIGHT JOIN `' . $this->config['prefix'] . $table . '`';
+        $this->sql .= ' RIGHT JOIN `' . $this->config[$this->flag]['prefix'] . $table . '`';
         return $this;
     }
 
     public function innerJoin($table)
     {
-        $this->sql .= ' INNER JOIN `' . $this->config['prefix'] . $table . '`';
+        $this->sql .= ' INNER JOIN `' . $this->config[$this->flag]['prefix'] . $table . '`';
         return $this;
     }
 
@@ -276,82 +315,23 @@ class Model
     }
 
 
-    public function quote($value)
-    {
-        if ($this->magicQuote) $value = stripslashes($value);
-        return $this->pdo->quote($value);
-    }
 
-    public function exec()
-    {
-        if (empty($this->data) && empty($this->condition)) {
-            $this->reset();
-            return $this->pdo->exec($this->sql);
-        } else {
-            //合并绑定数据
-            if (!empty($this->condition)) {
-                $param = array_merge($this->data, $this->condition);
-            } else {
-                $param = $this->data;
-            }
-            $stmt = $this->pdo->prepare($this->sql);
-            foreach ($param as $name => $value) {
-                #按照类型绑定数据
-                $stmt->bindValue(':' . $name, $value, $this->getDataType($value));
-            }
-            //print_r($param);
-            $this->reset();
-            return $stmt->execute();
-        }
-    }
-
-    public function fetch()
-    {
-        if ($this->condition) {
-            $this->stmt = $this->pdo->prepare($this->sql);
-            foreach ($this->condition as $name => $value) {
-                $this->stmt->bindValue(':' . $name, $value, $this->getDataType($value));
-            }
-            $this->stmt->execute();
-            $this->reset();
-            return $this->stmt->fetch();
-        }
-        $this->stmt = $this->pdo->query($this->sql);
-        $this->reset();
-        return $this->stmt->fetch();
-    }
-
-    public function fetchAll()
-    {
-        if ($this->condition) {
-            $this->stmt = $this->pdo->prepare($this->sql);
-            foreach ($this->condition as $name => $value) {
-                $this->stmt->bindValue(':' . $name, $value, $this->getDataType($value));
-            }
-            $this->stmt->execute();
-            $this->reset();
-            return $this->stmt->fetchAll();
-        }
-        $this->stmt = $this->pdo->query($this->sql);
-        $this->reset();
-        return $this->stmt->fetchAll();
-    }
 
     public function update($table)
     {
-        $this->sql = "UPDATE " . $this->config['prefix'] . $table . " SET ";
+        $this->sql = "UPDATE " . $this->config[$this->flag]['prefix'] . $table . " SET ";
         return $this;
     }
 
     public function insert($table)
     {
-        $this->sql = "INSERT INTO " . $this->config['prefix'] . $table . " SET ";
+        $this->sql = "INSERT INTO " . $this->config[$this->flag]['prefix'] . $table . " SET ";
         return $this;
     }
 
     public function replace($table)
     {
-        $this->sql = "REPLACE " . $this->config['prefix'] . $table . " SET ";
+        $this->sql = "REPLACE " . $this->config[$this->flag]['prefix'] . $table . " SET ";
         return $this;
     }
 
@@ -375,9 +355,74 @@ class Model
         if ($pagesize == 0) {
             $this->sql .= " LIMIT $start ";
         } else {
-            $this->sql .= " LIMIT $start * $pagesize,  $pagesize ";
+            $this->sql .= " LIMIT " . ($start - 1) * $pagesize . ",  $pagesize ";
         }
         return $this;
+    }
+
+    public function quote($value)
+    {
+        $this->getConnect();
+        if ($this->magicQuote) $value = stripslashes($value);
+        return $this->pdo->quote($value);
+    }
+
+    public function exec()
+    {
+        $this->getConnect();
+        if (empty($this->data) && empty($this->condition)) {
+            $this->reset();
+            return $this->pdo->exec($this->sql);
+        } else {
+            //合并绑定数据
+            if (!empty($this->condition)) {
+                $param = array_merge($this->data, $this->condition);
+            } else {
+                $param = $this->data;
+            }
+            $stmt = $this->pdo->prepare($this->sql);
+            foreach ($param as $name => $value) {
+                #按照类型绑定数据
+                $stmt->bindValue(':' . $name, $value, $this->getDataType($value));
+            }
+            //print_r($param);
+            $this->reset();
+            return $stmt->execute();
+        }
+    }
+
+    public function fetch()
+    {
+        $this->getConnect();
+        if ($this->condition) {
+            $this->stmt = $this->pdo->prepare($this->sql);
+            foreach ($this->condition as $name => $value) {
+                $this->stmt->bindValue(':' . $name, $value, $this->getDataType($value));
+            }
+            $this->stmt->execute();
+            $this->reset();
+            return $this->stmt->fetch();
+        }
+        $this->stmt = $this->pdo->query($this->sql);
+        $this->reset();
+        return $this->stmt->fetch();
+    }
+
+    public function fetchAll()
+    {
+        $this->getConnect();
+        if ($this->condition) {
+            $this->stmt = $this->pdo->prepare($this->sql);
+            foreach ($this->condition as $name => $value) {
+                $this->stmt->bindValue(':' . $name, $value, $this->getDataType($value));
+            }
+            $this->stmt->execute();
+            $this->reset();
+            return $this->stmt->fetchAll();
+        }
+        $this->stmt = $this->pdo->query($this->sql);
+        $this->reset();
+        return $this->stmt->fetchAll();
     }
 
     /**
@@ -389,10 +434,9 @@ class Model
     public function action($actions)
     {
         if (is_callable($actions)) {
+            $this->getConnect();
             $this->pdo->beginTransaction();
-
             $result = $actions($this);
-
             if ($result === false) {
                 $this->pdo->rollBack();
             } else {
@@ -410,7 +454,12 @@ class Model
      */
     public function query($sql)
     {
-        return $this->pdo->query($sql);
+        if(Config::get('DB.mode') === 'r-w' && strtolower(substr(trim($sql), 0, 6)) == 'select'){
+            $this->flag = 'slave';
+        }else{
+            $this->flag = 'master';
+        }
+        return $this->getConnect()->query($sql);
     }
 
     private function reset()
